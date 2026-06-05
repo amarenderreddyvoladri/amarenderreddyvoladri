@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00ff88,50:00cfff,100:bf5fff&height=220&section=header&text=Amarender%20Reddy%20Voladri&fontSize=44&fontColor=ffffff&fontAlignY=38&desc=Java%20Full%20Stack%20Developer%20%7C%20Spring%20Boot%20%7C%20Spring%20Security%206%20%7C%20JWT%20%2B%20RBAC%20%7C%20Microservices&descAlignY=58&descSize=15&descColor=d0ffe8" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:00ff88,50:00cfff,100:bf5fff&height=240&section=header&text=Amarender%20Reddy%20Voladri&fontSize=46&fontColor=ffffff&fontAlignY=36&desc=Java%20Full%20Stack%20Developer%20%7C%20Spring%20Boot%20%7C%20Spring%20Security%206%20%7C%20JWT%20%2B%20RBAC%20%7C%20Microservices&descAlignY=58&descSize=15&descColor=d0ffe8" />
 
 </div>
 
@@ -26,9 +26,10 @@ public class AmarenderReddyVoladri {
     String location    = "Hyderabad, India 🇮🇳";
 
     String[] expertise = {
-        "Spring Boot REST APIs",        "Spring Security 6 + JWT + RBAC",
-        "Angular + TypeScript",          "Microservices Architecture",
-        "MySQL + Hibernate/JPA",         "Docker + Kafka + Redis"
+        "Spring Boot 3 REST APIs",       "Spring Security 6 + JWT + RBAC",
+        "Angular + TypeScript",           "Microservices Architecture",
+        "MySQL + Hibernate/JPA",          "Docker + Redis + Kafka",
+        "Eureka + Spring Cloud",          "CI/CD Pipelines + DevOps"
     };
 
     String philosophy  = "Secure · Scalable · Maintainable enterprise software.";
@@ -36,9 +37,9 @@ public class AmarenderReddyVoladri {
 ```
 
 - 🏢 Built a **real-time enterprise HRMS platform** — employee onboarding, access control, attendance & approval workflows
-- 🔐 Implemented **Spring Security 6 + JWT + RBAC** for multi-role access (Admin / HR / Employee) — stateless & scalable
-- 🧩 Hands-on with **Microservices** — API Gateway, Eureka Service Registry, Docker, Kafka
-- 🖥️ Contributed end-to-end: **Spring Boot APIs → Angular frontend → MySQL → CI/CD**
+- 🔐 Implemented **production-grade Spring Security 6 + JWT + RBAC** with userId-based immutable tokens, DB-backed session control, OTP flows, brute-force protection, and forced password change enforcement
+- 🧩 Hands-on with **Microservices** — Spring Cloud Config Server, Eureka Service Registry, Docker Compose, Kafka
+- 🗂️ Engineered **comprehensive audit logging**, token lifecycle management, Redis-backed OTP flows, and scheduled token cleanup
 - 🌐 **Portfolio:** [amarenderreddyvoladri-portfolio.netlify.app](https://amarenderreddyvoladri-portfolio.netlify.app/)
 
 ---
@@ -61,461 +62,463 @@ public class AmarenderReddyVoladri {
 
 ---
 
-## 🔐 Spring Security 6 + JWT — Deep Dive
+## 🔐 Featured Project — Enterprise Spring Security Template
 
-> **This is my primary area of expertise.** Below is the exact implementation pattern I use in enterprise HRMS projects.
+> **Production-Ready Authentication, Authorization & Identity Management Microservice**
+> A reusable enterprise-grade security foundation simulating real-world systems used in HRMS, fintech, and SaaS platforms.
 
-### 🔄 Complete JWT Authentication Flow
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                        JWT AUTHENTICATION FLOW                               │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  STEP 1 ── Client sends credentials                                          │
-│            POST /api/auth/login                                              │
-│            Body: { "username": "admin@hrms.com", "password": "Pass@123" }   │
-│                                    │                                         │
-│                                    ▼                                         │
-│  STEP 2 ── AuthenticationManager validates                                   │
-│            → Delegates to UserDetailsService                                 │
-│            → Loads user from DB                                              │
-│            → BCryptPasswordEncoder.matches(rawPwd, hashedPwd)                │
-│                                    │                                         │
-│                                    ▼                                         │
-│  STEP 3 ── JwtService generates tokens                                       │
-│            → Access Token  (expires: 15 minutes)                             │
-│            → Refresh Token (expires: 7 days)                                 │
-│            → Signed with HMAC-SHA512 secret key                              │
-│            → Claims: { sub, roles[], iat, exp }                              │
-│                                    │                                         │
-│                                    ▼                                         │
-│  STEP 4 ── Client stores token, sends on every request                       │
-│            Header: Authorization: Bearer <token>                             │
-│                                    │                                         │
-│                                    ▼                                         │
-│  STEP 5 ── JwtAuthFilter (OncePerRequestFilter) intercepts                   │
-│            → Extracts token from Authorization header                        │
-│            → Validates signature + expiry                                    │
-│            → Loads UserDetails, sets SecurityContextHolder                   │
-│            → Stateless — NO HttpSession created                              │
-│                                    │                                         │
-│                                    ▼                                         │
-│  STEP 6 ── @PreAuthorize enforces RBAC                                       │
-│            → Checks roles from JWT claims                                    │
-│            → Blocks unauthorized access BEFORE method executes               │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-### ⚙️ SecurityFilterChain Configuration
-
-```java
-@Configuration
-@EnableWebSecurity
-@EnableMethodSecurity   // enables @PreAuthorize at method level
-@RequiredArgsConstructor
-public class SecurityConfig {
-
-    private final JwtAuthFilter jwtAuthFilter;
-    private final UserDetailsService userDetailsService;
-
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())                                      // stateless API — no CSRF
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS))      // no sessions, JWT only
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll()                   // login/register open
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")            // Admin only
-                .requestMatchers("/api/hr/**").hasAnyRole("ADMIN", "HR")      // Admin + HR
-                .requestMatchers("/api/employee/**").hasAnyRole("ADMIN", "HR", "EMPLOYEE")
-                .anyRequest().authenticated()
-            )
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(jwtAuthFilter,
-                UsernamePasswordAuthenticationFilter.class);                  // JWT filter before auth
-
-        return http.build();
-    }
-
-    @Bean
-    public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
-        return provider;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(12);   // strength factor 12
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
-            throws Exception {
-        return config.getAuthenticationManager();
-    }
-}
-```
-
-### 🔑 JWT Token Structure & Generation
+### 🏗️ Complete System Architecture
 
 ```
-JWT = Base64(Header) . Base64(Payload) . HMAC-SHA512-Signature
-       ─────────────   ───────────────   ────────────────────────
-       eyJhbGciOi...   eyJzdWIiOiJhZ...  HMACSHA512(secret)
-
-HEADER  → { "alg": "HS512", "typ": "JWT" }
-PAYLOAD → { "sub": "admin@hrms.com",
-             "roles": ["ROLE_ADMIN"],
-             "iat": 1717600000,
-             "exp": 1717600900  }   ← 15 min expiry
-```
-
-```java
-@Service
-public class JwtService {
-
-    @Value("${jwt.secret}")
-    private String secretKey;
-
-    private static final long ACCESS_TOKEN_EXPIRY  = 1000 * 60 * 15;     // 15 min
-    private static final long REFRESH_TOKEN_EXPIRY = 1000 * 60 * 60 * 24 * 7; // 7 days
-
-    // Generate Access Token with roles claim
-    public String generateAccessToken(UserDetails userDetails) {
-        Map<String, Object> claims = new HashMap<>();
-        claims.put("roles", userDetails.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList()));
-
-        return Jwts.builder()
-                .setClaims(claims)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRY))
-                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
-                .compact();
-    }
-
-    // Validate token — checks signature + expiry
-    public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
-    }
-
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secretKey));
-    }
-
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
-    public String extractUsername(String token) {
-        return extractClaim(token, Claims::getSubject);
-    }
-
-    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
-        final Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey()).build()
-                .parseClaimsJws(token).getBody();
-        return claimsResolver.apply(claims);
-    }
-}
-```
-
-### 🚦 JwtAuthFilter — Intercepts Every Request
-
-```java
-@Component
-@RequiredArgsConstructor
-public class JwtAuthFilter extends OncePerRequestFilter {
-
-    private final JwtService jwtService;
-    private final UserDetailsService userDetailsService;
-
-    @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain)
-            throws ServletException, IOException {
-
-        final String authHeader = request.getHeader("Authorization");
-
-        // Skip if no Bearer token present
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        final String jwt = authHeader.substring(7);   // strip "Bearer "
-        final String userEmail = jwtService.extractUsername(jwt);
-
-        // Only authenticate if not already authenticated
-        if (userEmail != null &&
-            SecurityContextHolder.getContext().getAuthentication() == null) {
-
-            UserDetails userDetails = userDetailsService.loadUserByUsername(userEmail);
-
-            if (jwtService.isTokenValid(jwt, userDetails)) {
-                // Build authentication token and set in SecurityContext
-                UsernamePasswordAuthenticationToken authToken =
-                    new UsernamePasswordAuthenticationToken(
-                        userDetails, null, userDetails.getAuthorities());
-
-                authToken.setDetails(
-                    new WebAuthenticationDetailsSource().buildDetails(request));
-
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
-        }
-        filterChain.doFilter(request, response);
-    }
-}
+╔══════════════════════════════════════════════════════════════════════════════════╗
+║             ENTERPRISE SPRING SECURITY TEMPLATE — PRODUCTION ARCHITECTURE       ║
+╠══════════════════════════════════════════════════════════════════════════════════╣
+║                                                                                  ║
+║   CLIENT (Angular SPA / Postman / Mobile App)                                    ║
+║   ┌────────────────────────────────────────────────────────────────────────┐     ║
+║   │  POST /api/v1/auth/login    │  Authorization: Bearer <access_token>   │     ║
+║   │  POST /api/v1/users/register│  POST /api/v1/auth/refresh-token         │     ║
+║   └──────────────────┬─────────────────────────────────┬──────────────────┘     ║
+║                      │ HTTPS                           │ HTTPS                  ║
+║                      ▼                                 ▼                        ║
+║   ╔════════════════════════════════════════════════════════════════════════╗     ║
+║   ║              SPRING SECURITY FILTER CHAIN (OncePerRequestFilter)      ║     ║
+║   ║  ┌────────────────────────────────────────────────────────────────┐   ║     ║
+║   ║  │  JwtFilter (8-Layer Validation Pipeline)                        │   ║     ║
+║   ║  │  ① No Bearer token? → pass to public endpoints               │   ║     ║
+║   ║  │  ② Cryptographic JWT signature + expiry check                 │   ║     ║
+║   ║  │  ③ tokenType guard → ONLY "ACCESS" tokens pass                │   ║     ║
+║   ║  │  ④ DB session check → revoked / expired flags in user_tokens  │   ║     ║
+║   ║  │  ⑤ DB expiry sync → detects clock/timing mismatch             │   ║     ║
+║   ║  │  ⑥ Extract userId (immutable PK) + role + permissions         │   ║     ║
+║   ║  │  ⑦ forcePasswordChange guard → blocks all endpoints but /auth │   ║     ║
+║   ║  │  ⑧ Build GrantedAuthority list → set SecurityContextHolder    │   ║     ║
+║   ║  └────────────────────────────────────────────────────────────────┘   ║     ║
+║   ╚════════════════════════════════════════════════════════════════════════╝     ║
+║                      │                                                           ║
+║          ┌───────────┼───────────┬─────────────┐                               ║
+║          ▼           ▼           ▼             ▼                               ║
+║   ┌─────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐                 ║
+║   │    AUTH     │ │  ADMIN   │ │   USER   │ │    AUDIT     │                 ║
+║   │  CONTROLLER │ │CONTROLLER│ │CONTROLLER│ │  CONTROLLER  │                 ║
+║   │             │ │          │ │          │ │              │                 ║
+║   │ POST /login │ │GET /users│ │GET /me   │ │GET /logs     │                 ║
+║   │ POST /logout│ │ lock/    │ │ register │ │ (ADMIN only) │                 ║
+║   │ POST /refresh│ │ unlock/  │ │ otp-flow │ │              │                 ║
+║   │ GET /sessions│ │ enable/  │ │ password │ │              │                 ║
+║   │ DELETE /     │ │ disable  │ │ reset    │ │              │                 ║
+║   │  sessions/id │ │ force-   │ │ change   │ │              │                 ║
+║   │ POST /logout-│ │ logout   │ │ username │ │              │                 ║
+║   │  all         │ │ revoke   │ │ change   │ │              │                 ║
+║   └──────┬──────┘ └────┬─────┘ └────┬─────┘ └──────┬───────┘                 ║
+║          │             │            │              │                           ║
+║          └─────────────┴────────────┴──────────────┘                          ║
+║                                    │                                           ║
+║               ┌────────────────────┼────────────────────┐                     ║
+║               ▼                    ▼                    ▼                     ║
+║   ┌───────────────────┐ ┌─────────────────────┐ ┌─────────────────────┐       ║
+║   │   SERVICE LAYER   │ │   SECURITY SERVICES │ │  SCHEDULED SERVICES │       ║
+║   │                   │ │                     │ │                     │       ║
+║   │  AuthServiceImpl  │ │ LoginAttemptService │ │ TokenCleanupScheduler│       ║
+║   │  AdminServiceImpl │ │ RedisLoginAttempt   │ │ (every 5 minutes)   │       ║
+║   │  UserServiceImpl  │ │   Service           │ │ → marks expired     │       ║
+║   │  AuditService     │ │ RedisOtpService     │ │   tokens in DB      │       ║
+║   │  EmailService     │ │ RoleInitialization  │ │                     │       ║
+║   │  AuditQueryService│ │   Service           │ │                     │       ║
+║   └────────┬──────────┘ └──────────┬──────────┘ └─────────────────────┘       ║
+║            │                       │                                           ║
+║            └───────────┬───────────┘                                           ║
+║                        ▼                                                       ║
+║   ┌────────────────────────────────────────────────────────────────────────┐   ║
+║   │                      INFRASTRUCTURE LAYER                              │   ║
+║   │                                                                        │   ║
+║   │  ┌─────────────────────┐  ┌─────────────────────┐  ┌────────────────┐ │   ║
+║   │  │   MYSQL 8.4         │  │   REDIS 7 (Alpine)  │  │  SENDGRID API  │ │   ║
+║   │  │   (Docker Volume)   │  │   (Docker Volume)   │  │  (Email/OTP)   │ │   ║
+║   │  │                     │  │                     │  │                │ │   ║
+║   │  │  users              │  │  otp:<purpose>:     │  │ Registration   │ │   ║
+║   │  │  roles              │  │    <email>  TTL:5m  │  │ OTP emails     │ │   ║
+║   │  │  permissions        │  │                     │  │ Password reset │ │   ║
+║   │  │  role_permissions   │  │  login_attempt:     │  │ Notifications  │ │   ║
+║   │  │  user_tokens        │  │    <username>       │  │                │ │   ║
+║   │  │  audit_logs         │  │    TTL: configurable│  │                │ │   ║
+║   │  │  otp_tokens         │  │                     │  │                │ │   ║
+║   │  │  password_reset_    │  │  permission cache   │  │                │ │   ║
+║   │  │    tokens           │  │                     │  │                │ │   ║
+║   │  └─────────────────────┘  └─────────────────────┘  └────────────────┘ │   ║
+║   └────────────────────────────────────────────────────────────────────────┘   ║
+║                                                                                  ║
+║   ┌────────────────────────────────────────────────────────────────────────┐   ║
+║   │                  SPRING CLOUD MICROSERVICES LAYER                      │   ║
+║   │                                                                        │   ║
+║   │  ┌───────────────────────┐        ┌────────────────────────────┐       │   ║
+║   │  │   CONFIG SERVER       │        │   EUREKA SERVICE REGISTRY  │       │   ║
+║   │  │   (Spring Cloud)      │        │   (Port 8761)              │       │   ║
+║   │  │   Dockerfile + Docker │        │   Dockerfile + Docker      │       │   ║
+║   │  │   Compose ready       │        │   Compose ready            │       │   ║
+║   │  │   ApplicationInfo     │        │   DiscoveryServer          │       │   ║
+║   │  │   Contributor         │        │   HealthIndicator          │       │   ║
+║   │  │   StartupLogger       │        │   StartupLogger            │       │   ║
+║   │  └───────────────────────┘        └────────────────────────────┘       │   ║
+║   └────────────────────────────────────────────────────────────────────────┘   ║
+║                                                                                  ║
+╚══════════════════════════════════════════════════════════════════════════════════╝
 ```
 
 ---
 
-## 🛡️ RBAC — Role-Based Access Control (Deep Dive)
+### 🔄 JWT Authentication & Token Lifecycle Flow
 
-### Role Hierarchy & Permissions Matrix
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                      COMPLETE JWT TOKEN LIFECYCLE (PRODUCTION)                   │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  REGISTRATION FLOW ──────────────────────────────────────────────────────────── │
+│                                                                                  │
+│  Client → POST /users/send-registration-otp                                      │
+│             └──► RedisOtpService.saveOtp()                                       │
+│                  Key: "otp:REGISTRATION:<email>"  TTL: 5 minutes                 │
+│             └──► EmailService (SendGrid) → OTP email delivered                   │
+│                                                                                  │
+│  Client → POST /users/register  { email, otp, password }                        │
+│             └──► RedisOtpService.getOtp() → verifies OTP                        │
+│             └──► BCrypt.encode(password, strength=configurable)                  │
+│             └──► User saved with status=PENDING_APPROVAL                         │
+│             └──► Admin approves → role assigned → ACTIVE                         │
+│                                                                                  │
+│  LOGIN FLOW ─────────────────────────────────────────────────────────────────── │
+│                                                                                  │
+│  Client → POST /api/v1/auth/login { username, password }                        │
+│    │                                                                             │
+│    ▼                                                                             │
+│  AuthenticationManager.authenticate()                                            │
+│    └──► DaoAuthenticationProvider                                                │
+│           └──► UserDetailsService.loadUserByUsername()                           │
+│           └──► BCryptPasswordEncoder.matches(raw, hashed)                        │
+│                  │                                                               │
+│                  ▼                                                               │
+│  LoginAttemptService ──────────────────────────────────────────────             │
+│    FAILED? → RedisLoginAttemptService.increment(username)                        │
+│              attempts >= max? → accountLocked=true, lockTime=now                 │
+│              AuditService.log(ACCOUNT_LOCKED, BLOCKED)                           │
+│                                                                                  │
+│    SUCCESS? → RedisLoginAttemptService.reset(username)                           │
+│               User.lastLoginAt=now, lastLoginIp, lastLoginDevice                 │
+│                  │                                                               │
+│                  ▼                                                               │
+│  JwtUtility.generateAccessToken(userId, role, permissions)                       │
+│    subject = userId (Long)  ← IMMUTABLE — username-change-safe                  │
+│    claims  = { role, permissions[], tokenType="ACCESS" }                         │
+│    signed  = HMAC-SHA256(secret)                                                 │
+│    expiry  = configurable (default 15 min)                                       │
+│                                                                                  │
+│  JwtUtility.generateRefreshToken(userId)                                         │
+│    claims  = { tokenType="REFRESH" }                                             │
+│    expiry  = configurable (default 7 days)                                       │
+│                                                                                  │
+│  UserToken saved to DB ──────────────────────────────────────────────────────   │
+│    tokenId (UUID jti), accessToken, refreshToken                                 │
+│    accessExpiry, refreshExpiry, deviceInfo, ipAddress                            │
+│    revoked=false, expired=false, refreshUsed=false                               │
+│                                                                                  │
+│  TOKEN REFRESH FLOW ─────────────────────────────────────────────────────────── │
+│                                                                                  │
+│  Client → POST /api/v1/auth/refresh-token { refreshToken }                      │
+│    └──► isTokenValid() + tokenType="REFRESH" check                               │
+│    └──► DB token: revoked=false, refreshUsed=false                               │
+│    └──► refreshUsed=true (prevents refresh token reuse)                          │
+│    └──► New access + refresh tokens issued                                       │
+│    └──► Old token record updated                                                 │
+│                                                                                  │
+│  LOGOUT / SESSION MANAGEMENT ────────────────────────────────────────────────── │
+│                                                                                  │
+│  POST /logout          → current token: revoked=true, expired=true               │
+│  POST /logout-all      → ALL user tokens: revoked=true                           │
+│  DELETE /sessions/{id} → specific session revoked                                │
+│  Admin force-logout    → admin can revoke any user's tokens                      │
+│                                                                                  │
+│  SCHEDULED CLEANUP ──────────────────────────────────────────────────────────── │
+│                                                                                  │
+│  TokenCleanupScheduler runs every 5 minutes                                      │
+│    → fetches all tokens where expired=false                                      │
+│    → if accessExpiry AND refreshExpiry both passed → marks expired=true          │
+│    → batch saveAll() to DB                                                       │
+│                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
 
-| Endpoint / Resource | `ROLE_ADMIN` | `ROLE_HR` | `ROLE_EMPLOYEE` |
+---
+
+### 🛡️ RBAC — Role, Permission & Authorization Model
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                      ROLE-BASED ACCESS CONTROL (RBAC) MODEL                      │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                  │
+│  DATABASE SCHEMA ────────────────────────────────────────────────────────────── │
+│                                                                                  │
+│  ┌──────────┐    ┌───────────────────┐    ┌──────────────────┐                  │
+│  │  users   │    │  role_permissions │    │   permissions    │                  │
+│  ├──────────┤    ├───────────────────┤    ├──────────────────┤                  │
+│  │ id (PK)  │    │ role_id (FK)      │    │ id (PK)          │                  │
+│  │ username │    │ permission_id(FK) │    │ name (UNIQUE)    │                  │
+│  │ password │    └───────────────────┘    │ description      │                  │
+│  │ role_id  │                             └──────────────────┘                  │
+│  │ status   │    ┌──────────────────┐                                            │
+│  │ enabled  │    │      roles       │                                            │
+│  │ accountLocked│ ├──────────────────┤                                           │
+│  │ failedLogin  │ │ id (PK)          │                                           │
+│  │ Attempts     │ │ name (UNIQUE)    │                                           │
+│  │ lockTime     │ │ description      │                                           │
+│  │ forcePassword│ └──────────────────┘                                           │
+│  │ Change       │                                                                 │
+│  │ lastLoginAt  │                                                                 │
+│  │ lastLoginIp  │                                                                 │
+│  │ lastLoginDevice│                                                               │
+│  └──────────┘                                                                    │
+│                                                                                  │
+│  JWT CLAIMS STRUCTURE ────────────────────────────────────────────────────────  │
+│                                                                                  │
+│  {                                                                               │
+│    "sub":         "42",                   ← userId (immutable PK, not email)    │
+│    "role":        "ADMIN",                ← role name                            │
+│    "permissions": ["READ_USER",           ← granular permission strings          │
+│                    "DELETE_USER",                                                │
+│                    "FORCE_LOGOUT",                                               │
+│                    "ACCOUNT_LOCK",                                               │
+│                    "SYSTEM_ADMIN"],                                              │
+│    "tokenType":   "ACCESS",               ← guards against refresh token abuse  │
+│    "iat":         1717600000,                                                    │
+│    "exp":         1717600900                                                     │
+│  }                                                                               │
+│                                                                                  │
+│  AUTHORIZATION LAYERS ────────────────────────────────────────────────────────  │
+│                                                                                  │
+│  Layer 1 — Route-level (SecurityFilterChain)                                     │
+│    /api/v1/auth/login              → permitAll()                                 │
+│    /api/v1/users/register          → permitAll()                                 │
+│    /api/v1/users/forgot-password   → permitAll()                                 │
+│    OPTIONS /**                     → permitAll() (CORS preflight)                │
+│    /swagger-ui/**                  → permitAll()                                 │
+│    everything else                 → authenticated()                             │
+│                                                                                  │
+│  Layer 2 — Controller-level (@PreAuthorize)                                      │
+│    @PreAuthorize("hasRole('ADMIN')")           ← all methods in AdminController  │
+│    @PreAuthorize("hasAuthority('READ_USER')")  ← granular permission check       │
+│    @PreAuthorize("hasAuthority('FORCE_LOGOUT')")                                 │
+│    @PreAuthorize("hasAuthority('ACCOUNT_LOCK')")                                 │
+│    @PreAuthorize("hasAuthority('SYSTEM_ADMIN')")                                 │
+│    @PreAuthorize("isAuthenticated()")          ← user-level self-service         │
+│                                                                                  │
+│  Layer 3 — Permission Matrix                                                     │
+│                                                                                  │
+│  Permission          │ ADMIN │ MANAGER │ EMPLOYEE │ Description                  │
+│  ────────────────────┼───────┼─────────┼──────────┼───────────────────────────  │
+│  READ_USER           │  ✅   │   ✅    │    ❌    │ View user list               │
+│  VIEW_USERS          │  ✅   │   ✅    │    ❌    │ Access user endpoints        │
+│  DELETE_USER         │  ✅   │   ❌    │    ❌    │ Permanent delete             │
+│  FORCE_LOGOUT        │  ✅   │   ❌    │    ❌    │ Terminate any session        │
+│  REVOKE_TOKEN        │  ✅   │   ❌    │    ❌    │ Revoke user tokens           │
+│  SESSION_REVOKE      │  ✅   │   ❌    │    ❌    │ Invalidate sessions          │
+│  ACCOUNT_LOCK        │  ✅   │   ❌    │    ❌    │ Lock user account            │
+│  ACCOUNT_UNLOCK      │  ✅   │   ❌    │    ❌    │ Unlock user account          │
+│  TOGGLE_USER_ACCESS  │  ✅   │   ❌    │    ❌    │ Enable / disable user        │
+│  SYSTEM_ADMIN        │  ✅   │   ❌    │    ❌    │ Maintenance, cache ops       │
+│  VIEW_SYSTEM_STATS   │  ✅   │   ❌    │    ❌    │ System analytics             │
+│  VIEW_SECURITY_STATS │  ✅   │   ❌    │    ❌    │ Security analytics           │
+│  ASSIGN_EMPLOYEE     │  ✅   │   ✅    │    ❌    │ Approve registration         │
+│  ASSIGN_MANAGER      │  ✅   │   ❌    │    ❌    │ Promote to manager           │
+│  UPDATE_USER_STATUS  │  ✅   │   ✅    │    ❌    │ Reject registration          │
+│                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 🔒 Production Security Features Matrix
+
+| Security Feature | Implementation | Location |
+|---|---|---|
+| **Immutable JWT Subject** | `sub` = `userId` (Long PK), never username — username-change-safe | `JwtUtility.java` |
+| **Token Type Guard** | REFRESH tokens blocked from API access via `tokenType` claim check | `JwtFilter.java` |
+| **DB-Backed Session Control** | Every token stored in `user_tokens` table; revoked/expired flags checked on every request | `JwtFilter.java`, `UserToken.java` |
+| **DB Expiry Sync** | `accessExpiry` compared against `Instant.now()` to catch clock mismatch | `JwtFilter.java` |
+| **Force Password Change** | `forcePasswordChange` flag blocks all endpoints except `/change-password` + `/logout` | `JwtFilter.java`, `User.java` |
+| **Brute-Force Protection** | Redis-backed login attempt counter; auto-lock after configurable max attempts | `LoginAttemptService`, `RedisLoginAttemptService` |
+| **OTP Registration** | Redis-stored OTP (`TTL: 5 min`) for registration; verified before account creation | `RedisOtpService` |
+| **OTP Password Reset** | Redis-stored OTP for forgot-password flow; OTP verified before new password accepted | `RedisOtpService`, `UserController` |
+| **Refresh Token Reuse Detection** | `refreshUsed` flag set on first use; reuse attempt is rejected | `UserToken.java` |
+| **Multi-Device Session Management** | Active sessions viewable and individually revocable; logout-all supported | `AuthController.java` |
+| **Device + IP Tracking** | `deviceInfo`, `ipAddress` captured on login and token issuance | `User.java`, `UserToken.java` |
+| **Production Audit Logging** | Every action logged in `audit_logs` with userId, role, action, status, endpoint, IP, device, timestamp | `AuditService.java`, `AuditLog.java` |
+| **Audit Transaction Isolation** | `@Transactional(propagation = REQUIRES_NEW)` — audit never fails business operations | `AuditService.java` |
+| **Scheduled Token Cleanup** | `@Scheduled(fixedRate = 300000)` — expired tokens auto-marked every 5 minutes | `TokenCleanupScheduler.java` |
+| **Security Headers** | `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` | `SecurityConfig.java` |
+| **Centralised CORS** | Environment-based allowed origins; no `*` wildcard with credentials | `SecurityConfig.java` |
+| **Lazy Auth Circular Dep Fix** | `@Lazy` on `IAuthService` in `SecurityConfig` constructor resolves Spring circular dependency | `SecurityConfig.java` |
+| **JPA Auditing** | `createdBy`, `updatedBy`, `createdDate`, `lastModifiedDate` auto-populated via `AuditorAwareImpl` | `Auditable.java`, `AuditConfig.java` |
+| **DB Indexes** | Indexes on `username`, `status` in `users`; `user_id`, `action`, `status`, `created_at` in `audit_logs` | `User.java`, `AuditLog.java` |
+| **Bean Validation** | `@Email`, `@NotBlank`, `@Size` + `@Valid` on all request bodies | Entity + Request classes |
+| **Global Exception Handler** | Catches `ExpiredJwtException`, `MalformedJwtException`, `LockedException`, `AccessDeniedException`, etc. | `GlobalExceptionHandler.java` |
+| **Multi-Stage Docker Build** | Build stage: `maven:3.9.9-eclipse-temurin-21`; Runtime: `eclipse-temurin:21-jre` — minimal image | `Dockerfile` |
+| **Docker Compose Healthchecks** | MySQL and Redis health checks before app container starts (`depends_on` with `service_healthy`) | `docker-compose.yml` |
+| **Env-Based Config** | `.env` driven secrets (JWT secret, DB credentials, SendGrid keys) — no hardcoded values | `docker-compose.yml`, `.env` |
+
+---
+
+### 📁 Project Structure
+
+```
+production-prototype-security-template/
+│
+├── 📦 springboot-security-jwt-rbac-app4/         ← Main Security Service
+│   ├── 📄 Dockerfile                              ← Multi-stage build (Maven → JRE)
+│   ├── 📄 docker-compose.yml                      ← MySQL 8.4 + Redis 7 + App
+│   └── src/main/java/com/harinitech/
+│       └── springboot_security_jwt_rbac_app1/
+│           ├── config/
+│           │   ├── SecurityConfig.java            ← Filter chain, CORS, headers, @Lazy fix
+│           │   ├── RedisConfig.java               ← Jackson serializer, JavaTimeModule
+│           │   ├── SwaggerConfig.java             ← OpenAPI / Swagger UI
+│           │   ├── AuditConfig.java               ← @EnableJpaAuditing
+│           │   ├── AuditorAwareImpl.java          ← userId-based JPA auditor
+│           │   ├── PaginationConfig.java          ← Default page size config
+│           │   └── TimeZoneConfig.java            ← Timezone standardisation
+│           │
+│           ├── filter/
+│           │   └── JwtFilter.java                 ← 8-layer validation pipeline
+│           │
+│           ├── utility/
+│           │   ├── JwtUtility.java                ← userId-based token gen/validation
+│           │   ├── TokenCleanupScheduler.java     ← @Scheduled every 5 min cleanup
+│           │   └── RequestInfoUtil.java           ← Client IP + device extraction
+│           │
+│           ├── entity/
+│           │   ├── User.java                      ← Full account security model
+│           │   ├── Role.java                      ← @ManyToMany permissions
+│           │   ├── Permission.java                ← Granular authority strings
+│           │   ├── UserToken.java                 ← Full token lifecycle (jti, expiry, device)
+│           │   ├── AuditLog.java                  ← Indexed audit trail
+│           │   ├── Auditable.java                 ← @CreatedDate, @LastModifiedDate base
+│           │   └── OtpToken.java                  ← DB-backed OTP entity
+│           │
+│           ├── controller/
+│           │   ├── AuthController.java            ← login, refresh, logout, sessions
+│           │   ├── AdminController.java           ← @PreAuthorize("hasRole('ADMIN')")
+│           │   ├── UserController.java            ← register, OTP, password, profile
+│           │   └── AuditController.java           ← audit log queries (admin only)
+│           │
+│           ├── service/
+│           │   ├── AuthServiceImpl.java           ← Full auth flow
+│           │   ├── AdminServiceImpl.java          ← Admin operations
+│           │   ├── UserServiceImpl.java           ← User management
+│           │   ├── AuditService.java              ← REQUIRES_NEW transaction
+│           │   ├── AuditQueryService.java         ← Audit log querying
+│           │   ├── LoginAttemptService.java       ← Brute-force + auto-lock
+│           │   ├── RedisLoginAttemptService.java  ← Redis attempt counter
+│           │   ├── RedisOtpService.java           ← TTL-based OTP store
+│           │   ├── EmailService.java              ← SendGrid integration
+│           │   └── TokenCleanupService.java       ← Token lifecycle management
+│           │
+│           ├── passwordreset/
+│           │   ├── PasswordResetToken.java        ← Reset token entity
+│           │   ├── PasswordResetTokenRepository.java
+│           │   ├── ForgotPasswordRequest.java
+│           │   └── ResetPasswordRequest.java
+│           │
+│           ├── security/
+│           │   ├── RoleInitializationService.java ← Seeds roles/permissions on startup
+│           │   └── UserDataInitializer.java       ← Seeds default admin user
+│           │
+│           ├── exceptions/
+│           │   └── GlobalExceptionHandler.java   ← JWT, Security, Validation errors
+│           │
+│           └── model/                             ← DTOs, Request/Response models
+│               ├── ApiResponse.java              ← Unified response wrapper
+│               ├── JwtRequest/Response           ← Login models
+│               ├── RegisterRequest.java          ← OTP + credentials
+│               ├── UserResponseDto.java          ← Safe user projection
+│               └── AuditAction/Status enums
+│
+├── ⚙️ eureka-server/                              ← Service Discovery
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   └── DiscoveryServerHealthIndicator.java
+│
+└── ⚙️ config-server/                              ← Centralised Config
+    ├── Dockerfile
+    ├── docker-compose.yml
+    └── ApplicationInfoContributor.java
+```
+
+---
+
+### ⚙️ Tech Stack Deep-Dive
+
+| Layer | Technology | Version | Purpose |
 |---|---|---|---|
-| `POST /employees/onboard` | ✅ Full Access | ✅ Full Access | ❌ Denied |
-| `GET /employees` (all) | ✅ Full Access | ✅ Full Access | ❌ Denied |
-| `GET /employees/{id}` | ✅ Any Employee | ✅ Any Employee | ✅ Self Only |
-| `PUT /employees/{id}` | ✅ Any Employee | ✅ Any Employee | ⚠️ Self Only |
-| `DELETE /employees/{id}` | ✅ Full Access | ❌ Denied | ❌ Denied |
-| `GET /attendance` (all) | ✅ Full Access | ✅ Full Access | ❌ Denied |
-| `POST /attendance/mark` | ✅ Full Access | ✅ Full Access | ✅ Self Only |
-| `GET /salary/{id}` | ✅ Any | ✅ Any | ✅ Self Only |
-| `POST /salary/process` | ✅ Full Access | ⚠️ Limited | ❌ Denied |
-| `GET /reports` | ✅ All Reports | ⚠️ HR Reports | ⚠️ Personal Only |
-| `GET /system/config` | ✅ Full Access | ❌ Denied | ❌ Denied |
-
-> ✅ Full Access &nbsp;|&nbsp; ⚠️ Limited/Conditional &nbsp;|&nbsp; ❌ Denied
-
-### RBAC Implementation — Controller Level
-
-```java
-// ─── ADMIN ONLY ───────────────────────────────────────────────────────────────
-@RestController
-@RequestMapping("/api/admin")
-@PreAuthorize("hasRole('ADMIN')")   // applies to all methods in this controller
-public class AdminController {
-
-    @GetMapping("/system/config")
-    public ResponseEntity<SystemConfig> getSystemConfig() { ... }
-
-    @DeleteMapping("/employees/{id}")
-    public ResponseEntity<Void> deleteEmployee(@PathVariable Long id) { ... }
-}
-
-// ─── HR + ADMIN ───────────────────────────────────────────────────────────────
-@RestController
-@RequestMapping("/api/hr")
-public class HRController {
-
-    @PostMapping("/employees/onboard")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
-    public ResponseEntity<EmployeeDTO> onboardEmployee(
-            @RequestBody @Valid EmployeeRequest request) { ... }
-
-    @GetMapping("/employees")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
-    public ResponseEntity<List<EmployeeDTO>> getAllEmployees() { ... }
-
-    @GetMapping("/reports/hr")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
-    public ResponseEntity<HRReport> getHRReport() { ... }
-}
-
-// ─── EMPLOYEE — SELF-ACCESS PATTERN ──────────────────────────────────────────
-@RestController
-@RequestMapping("/api/employee")
-public class EmployeeController {
-
-    // Employee can only view their OWN salary
-    @GetMapping("/{id}/salary")
-    @PreAuthorize("hasAnyRole('ADMIN','HR') or #id == authentication.principal.id")
-    public ResponseEntity<SalaryDTO> getSalary(@PathVariable Long id) { ... }
-
-    // Employee can only update their OWN profile
-    @PutMapping("/{id}/profile")
-    @PreAuthorize("hasAnyRole('ADMIN','HR') or #id == authentication.principal.id")
-    public ResponseEntity<EmployeeDTO> updateProfile(
-            @PathVariable Long id,
-            @RequestBody ProfileUpdateRequest request) { ... }
-}
-```
-
-### User Entity & Roles Setup
-
-```java
-@Entity
-@Table(name = "users")
-public class User implements UserDetails {
-
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(unique = true, nullable = false)
-    private String email;
-
-    @Column(nullable = false)
-    private String password;   // BCrypt hashed
-
-    @Enumerated(EnumType.STRING)
-    private Role role;   // ADMIN | HR | EMPLOYEE
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
-    }
-
-    @Override public boolean isAccountNonExpired()  { return true; }
-    @Override public boolean isAccountNonLocked()   { return true; }
-    @Override public boolean isCredentialsNonExpired(){ return true; }
-    @Override public boolean isEnabled()             { return true; }
-}
-
-public enum Role { ADMIN, HR, EMPLOYEE }
-```
+| **Runtime** | Java | 21 (LTS) | Modern records, sealed classes, virtual threads ready |
+| **Framework** | Spring Boot | 3.x | Auto-configuration, production-ready starters |
+| **Security** | Spring Security | 6.x | SecurityFilterChain, @EnableMethodSecurity |
+| **Auth** | JJWT (jjwt-api/impl/jackson) | Latest | HMAC-SHA256 signed tokens |
+| **ORM** | Spring Data JPA + Hibernate | 6.x | Entities, repositories, lazy/eager loading |
+| **Database** | MySQL | 8.4 | Production-grade RDBMS, Docker healthcheck |
+| **Cache / Session** | Redis | 7 (Alpine) | OTP TTL store, login attempt counters |
+| **Redis Client** | Spring Data Redis + commons-pool2 | Latest | Connection pooling, Jackson serialization |
+| **Email** | SendGrid + Spring Mail | Latest | OTP delivery, password reset emails |
+| **Service Discovery** | Spring Cloud Netflix Eureka | Latest | Service registry, health monitoring |
+| **Config Management** | Spring Cloud Config Server | Latest | Centralised configuration |
+| **API Docs** | SpringDoc OpenAPI (Swagger UI) | Latest | Auto-generated API documentation |
+| **Build** | Maven | 3.9.9 | Dependency management, lifecycle |
+| **Containerisation** | Docker + Docker Compose | Latest | Multi-stage build, health checks |
+| **Validation** | Spring Validation (Hibernate Validator) | Latest | Bean validation on all requests |
+| **Utilities** | Lombok | Latest | Boilerplate reduction |
+| **Scheduler** | Spring @Scheduled | Built-in | Token cleanup every 5 min |
 
 ---
 
-## 🛠️ Tech Stack
+## 🏢 Work Experience
 
-### ☕ Backend
-![Java](https://img.shields.io/badge/Java-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?style=flat-square&logo=spring-boot&logoColor=white)
-![Spring Security](https://img.shields.io/badge/Spring_Security_6-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
-![JWT](https://img.shields.io/badge/JWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
-![REST APIs](https://img.shields.io/badge/REST_APIs-FF6C37?style=flat-square&logo=postman&logoColor=white)
-![Hibernate](https://img.shields.io/badge/Hibernate_JPA-59666C?style=flat-square&logo=hibernate&logoColor=white)
-![Maven](https://img.shields.io/badge/Maven-C71A36?style=flat-square&logo=apache-maven&logoColor=white)
-
-### 🌐 Frontend
-![Angular](https://img.shields.io/badge/Angular-DD0031?style=flat-square&logo=angular&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white)
-![Angular Material](https://img.shields.io/badge/Angular_Material-009688?style=flat-square&logo=angular&logoColor=white)
-![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white)
-![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)
-
-### 🗄️ Database & Messaging
-![MySQL](https://img.shields.io/badge/MySQL-4479A1?style=flat-square&logo=mysql&logoColor=white)
-![Redis](https://img.shields.io/badge/Redis-DC382D?style=flat-square&logo=redis&logoColor=white)
-![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?style=flat-square&logo=apache-kafka&logoColor=white)
-
-### ⚙️ DevOps & Architecture
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Microservices](https://img.shields.io/badge/Microservices-00ff88?style=flat-square&logoColor=black)
-![API Gateway](https://img.shields.io/badge/API_Gateway-FF9900?style=flat-square&logo=amazonaws&logoColor=white)
-![Eureka](https://img.shields.io/badge/Eureka_Registry-6DB33F?style=flat-square&logo=spring&logoColor=white)
-![CI/CD](https://img.shields.io/badge/CI%2FCD-2088FF?style=flat-square&logo=github-actions&logoColor=white)
-![Git](https://img.shields.io/badge/Git-F05032?style=flat-square&logo=git&logoColor=white)
-![Postman](https://img.shields.io/badge/Postman-FF6C37?style=flat-square&logo=postman&logoColor=white)
-![Swagger](https://img.shields.io/badge/Swagger_OpenAPI-85EA2D?style=flat-square&logo=swagger&logoColor=black)
-
----
-
-## 🏗️ Microservices Architecture (HRMS)
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         ANGULAR SPA (Frontend)                          │
-│              Reactive Forms · HttpClient · Angular Material             │
-└──────────────────────────────┬──────────────────────────────────────────┘
-                               │  HTTPS
-                               ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                           API GATEWAY                                   │
-│          Routing · JWT Validation · Rate Limiting · CORS                │
-└──────┬──────────────┬──────────────┬───────────────┬────────────────────┘
-       │              │              │               │
-       ▼              ▼              ▼               ▼
-┌────────────┐ ┌────────────┐ ┌───────────┐ ┌──────────────────┐
-│   AUTH     │ │  EMPLOYEE  │ │ATTENDANCE │ │  NOTIFICATION    │
-│  SERVICE   │ │  SERVICE   │ │  SERVICE  │ │    SERVICE       │
-│            │ │            │ │           │ │                  │
-│ JWT Issue  │ │ Onboarding │ │ Check-in  │ │ Kafka Consumer   │
-│ BCrypt     │ │ Profiles   │ │ Leave Mgmt│ │ Email Alerts     │
-│ RBAC       │ │ Role Assign│ │ Kafka Pub │ │ Async Events     │
-└────────────┘ └────────────┘ └───────────┘ └──────────────────┘
-       │              │              │               │
-       └──────────────┴──────────────┴───────────────┘
-                               │
-       ┌───────────────────────┼───────────────────────┐
-       ▼                       ▼                       ▼
-┌────────────┐         ┌──────────────┐       ┌──────────────┐
-│   MySQL    │         │    REDIS     │       │    KAFKA     │
-│  Database  │         │    Cache     │       │    Broker    │
-│            │         │              │       │              │
-│ Persistent │         │ Token Store  │       │ Event Stream │
-│ Hibernate  │         │ Session Cache│       │ Pub / Sub    │
-└────────────┘         └──────────────┘       └──────────────┘
-                               │
-                    ┌──────────┘
-                    ▼
-           ┌─────────────────┐
-           │ EUREKA REGISTRY │
-           │ Service Discover│
-           │ Health Checks   │
-           └─────────────────┘
-```
-
----
-
-## 💼 Work Experience
-
-### 🏢 Software Engineer Associate — Enterprise HRMS Platform
+### Software Engineer Associate — Enterprise HRMS Platform
 > *Real-time enterprise application · Employee Lifecycle & Workforce Operations*
 
-**Key Contributions:**
-
 - 🔧 Developed and maintained **RESTful APIs** using Java & Spring Boot for onboarding workflows, employee profile management, role assignment, approval processes, and real-time status tracking
-
-- 🔐 Implemented **Spring Security 6 + JWT + RBAC** for Admin, HR, and Employee module access control — stateless, secure, and scalable with refresh token rotation
-
+- 🔐 Implemented **Spring Security 6 + JWT + RBAC** for Admin, HR, and Employee module access control — stateless, secure, and scalable with refresh token rotation and multi-device session management
 - 🖥️ Built **Angular frontend** with Reactive Forms, TypeScript, and Angular Material — dynamic forms, validations, dashboards, and user interaction workflows
-
-- 🗄️ Used **Hibernate/JPA + MySQL** for CRUD operations, entity mapping, lazy/eager loading, and optimized queries to improve data handling efficiency
-
-- 🧩 Worked with **Microservices architecture** — API Gateway and Eureka Service Registry for service communication and centralized routing
-
-- 🐳 Gained hands-on exposure to **Docker containerization, Redis caching, Kafka event communication**, Git, and CI/CD deployment workflows
-
+- 🗄️ Used **Hibernate/JPA + MySQL** for CRUD operations, entity mapping, lazy/eager loading, and optimized queries with database indexing
+- 🧩 Worked with **Microservices architecture** — Spring Cloud Config Server and Eureka Service Registry for centralised configuration and service discovery
+- 🐳 Implemented **Docker containerisation** with multi-stage builds, Redis caching for OTP and session management, Kafka event communication, Git version control, and CI/CD deployment workflows
 - 🔄 Collaborated in **Agile Scrum** — daily stand-ups, sprint planning, code reviews, bug fixes, and release cycles
-
 - 🐛 Debugged production issues, performed **Postman API testing**, wrote Swagger/OpenAPI docs, and supported stable deployment activities
 
-`Java` `Spring Boot` `Spring Security 6` `JWT` `RBAC` `Angular` `TypeScript` `Reactive Forms` `Hibernate` `JPA` `MySQL` `Microservices` `API Gateway` `Eureka` `Docker` `Redis` `Kafka` `CI/CD` `Swagger`
+`Java` `Spring Boot 3` `Spring Security 6` `JWT` `RBAC` `Angular` `TypeScript` `Reactive Forms` `Hibernate` `JPA` `MySQL` `Microservices` `Spring Cloud` `Eureka` `Config Server` `Docker` `Redis` `Kafka` `CI/CD` `Swagger`
 
 ---
 
-## 🚀 Featured Projects
+## 🚀 Projects
 
 ### 🔐 Enterprise Spring Security Template
-> **Production-Ready Authentication & Authorization Microservice**
+> **Production-Ready Authentication, Authorization & Identity Management Microservice**
+> [→ View on GitHub](https://github.com/amarenderreddyvoladri/production-prototype-security-template)
 
-A reusable enterprise-grade Spring Security template simulating real-world security systems used in HRMS, fintech, and SaaS applications.
+A reusable enterprise-grade Spring Security template with production-quality security architecture covering the complete identity management lifecycle.
 
-| Feature | Implementation |
+| Feature Area | What's Built |
 |---|---|
-| 🔑 Authentication | JWT Access Token (15min) + Refresh Token (7d) + BCrypt password hashing |
-| 🛡️ Authorization | RBAC + `@PreAuthorize` endpoint-level protection + stateless session management |
-| 🔄 Token Rotation | Refresh token endpoint + token blacklisting via Redis |
-| 🏗️ Clean Architecture | Controller → Service → Repository → DTO → Global Exception Handler |
-| 📄 API Docs | Swagger / OpenAPI — auto-generated developer documentation |
-| 🐳 Containerization | Docker Compose + environment-based dev/prod configuration profiles |
-| ⚡ Scalability | Redis caching + Kafka-based event communication patterns |
+| 🔑 **Authentication** | OTP-verified registration, login with JWT access (15 min) + refresh tokens (7 days), BCrypt password hashing |
+| 🛡️ **Authorization** | RBAC with `@PreAuthorize` — dual-layer role + granular permission checks per endpoint |
+| 🔄 **Token Lifecycle** | DB-backed session store, refresh token rotation with reuse detection, token type guards, scheduled cleanup |
+| 🔒 **Brute-Force Protection** | Redis-backed attempt counter with configurable threshold, auto account lock + audit log |
+| 📱 **Session Management** | Multi-device session view, individual session revoke, logout-all, admin force-logout |
+| 🔑 **OTP Flows** | Redis TTL-based OTP for registration + password reset via SendGrid email |
+| 🧾 **Audit Trail** | Every security event logged with userId, role, endpoint, IP, device, timestamp — isolated transactions |
+| ⚙️ **Infrastructure** | Multi-stage Docker build, Docker Compose with MySQL 8.4 + Redis 7, healthcheck dependencies |
+| ☁️ **Spring Cloud** | Eureka Service Registry + Spring Cloud Config Server, both Dockerised |
+| 📄 **API Docs** | Swagger / OpenAPI UI with complete endpoint documentation |
 
-`Java` `Spring Boot 3` `Spring Security 6` `JWT` `RBAC` `MySQL` `Hibernate` `Docker` `Redis` `Kafka` `Swagger` `CI/CD`
+`Java 21` `Spring Boot 3` `Spring Security 6` `JWT` `RBAC` `MySQL 8.4` `Redis 7` `Docker` `Spring Cloud` `Eureka` `Config Server` `SendGrid` `Swagger` `Lombok` `JPA`
 
 ---
 
@@ -551,6 +554,41 @@ Dynamic question management, scoring engine, and session tracking with clean RES
 
 ---
 
+## 🛠️ Tech Stack
+
+### ☕ Backend
+![Java](https://img.shields.io/badge/Java_21-ED8B00?style=flat-square&logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot_3-6DB33F?style=flat-square&logo=spring-boot&logoColor=white)
+![Spring Security](https://img.shields.io/badge/Spring_Security_6-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
+![REST APIs](https://img.shields.io/badge/REST_APIs-FF6C37?style=flat-square&logo=postman&logoColor=white)
+![Hibernate](https://img.shields.io/badge/Hibernate_JPA-59666C?style=flat-square&logo=hibernate&logoColor=white)
+![Maven](https://img.shields.io/badge/Maven-C71A36?style=flat-square&logo=apache-maven&logoColor=white)
+
+### 🌐 Frontend
+![Angular](https://img.shields.io/badge/Angular-DD0031?style=flat-square&logo=angular&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white)
+![Angular Material](https://img.shields.io/badge/Angular_Material-009688?style=flat-square&logo=angular&logoColor=white)
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat-square&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat-square&logo=css3&logoColor=white)
+
+### 🗄️ Database & Messaging
+![MySQL](https://img.shields.io/badge/MySQL_8.4-4479A1?style=flat-square&logo=mysql&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis_7-DC382D?style=flat-square&logo=redis&logoColor=white)
+![Apache Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?style=flat-square&logo=apache-kafka&logoColor=white)
+
+### ⚙️ DevOps & Architecture
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)
+![Spring Cloud](https://img.shields.io/badge/Spring_Cloud-6DB33F?style=flat-square&logo=spring&logoColor=white)
+![Eureka](https://img.shields.io/badge/Eureka_Registry-6DB33F?style=flat-square&logo=spring&logoColor=white)
+![Microservices](https://img.shields.io/badge/Microservices-00ff88?style=flat-square&logoColor=black)
+![CI/CD](https://img.shields.io/badge/CI%2FCD-2088FF?style=flat-square&logo=github-actions&logoColor=white)
+![Git](https://img.shields.io/badge/Git-F05032?style=flat-square&logo=git&logoColor=white)
+![Postman](https://img.shields.io/badge/Postman-FF6C37?style=flat-square&logo=postman&logoColor=white)
+![Swagger](https://img.shields.io/badge/Swagger_OpenAPI-85EA2D?style=flat-square&logo=swagger&logoColor=black)
+
+---
+
 ## 🌱 Currently Exploring
 
 | Area | What I'm Learning |
@@ -559,6 +597,7 @@ Dynamic question management, scoring engine, and session tracking with clean RES
 | 🏗️ System Design | Scalability patterns, CAP theorem, distributed architecture, high availability |
 | 📨 Kafka at Scale | Consumer groups, partitioning strategies, real-time stream processing |
 | 🔒 Secure Coding | OWASP Top 10, OAuth 2.0, API hardening, vulnerability scanning |
+| 🚀 Kubernetes | Container orchestration, Helm charts, auto-scaling |
 
 ---
 
